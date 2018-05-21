@@ -1,7 +1,8 @@
 
-import java.security.SecureRandom;
-import java.util.Arrays;
-
+/**
+ * @author Brandon Gaetaniello
+ * @author Arwain Karlin
+ */
 public class Cryptogram {
 
     public byte[] getZ() {
@@ -25,10 +26,6 @@ public class Cryptogram {
         myC = c;
         myT = t;
     }
-
-
-
-
 
 
 //    public static void main(String[] happy) {
