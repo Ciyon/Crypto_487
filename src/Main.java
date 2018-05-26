@@ -342,8 +342,8 @@ public class Main {
     public static byte[] generateKeyPair(byte [] pwd){
         Point pointA = new Point(BigInteger.valueOf(1),BigInteger.valueOf(0));
         Point pointB = new Point(BigInteger.valueOf(-1),BigInteger.valueOf(0));
-        pointA = pointA.sum(pointB);
-        System.out.println("X: " + pointA.getX() + " " + "Y: " + pointA.getY());
+        Point result = pointA.sum(pointB);
+        System.out.println("X: " + result.getX() + " " + "Y: " + result.getY());
 
 //        byte [] V;
 //        byte [] s;
