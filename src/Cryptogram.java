@@ -1,42 +1,30 @@
 
-import java.security.SecureRandom;
-import java.util.Arrays;
-
+/**
+ * @author Brandon Gaetaniello
+ * @author Arwain Karlin
+ */
 public class Cryptogram {
 
-    public byte[] getZ() {
-        return myZ;
+    public byte[] getIV() {
+        return IV;
     }
 
-    public byte[] getC() {
-        return myC;
+    public byte[] getCipherText() {
+        return cipherText;
     }
 
-    public byte[] getT() {
-        return myT;
+    public byte[] getMAC() {
+        return MAC;
     }
 
-    private byte[] myZ;
-    private byte[] myC;
-    private byte[] myT;
+    private byte[] IV;
+    private byte[] cipherText;
+    private byte[] MAC;
 
     public Cryptogram(byte[] z, byte[] c, byte[] t) {
-        myZ = z;
-        myC = c;
-        myT = t;
+        IV = z;
+        cipherText = c;
+        MAC = t;
     }
-
-
-
-
-
-
-//    public static void main(String[] happy) {
-//
-//        Cryptogram c = new Cryptogram();
-//        byte[] a = new byte[8];
-//        a = c.randomByte();
-//        System.out.println(Arrays.toString(a));
-//    }
 
 }

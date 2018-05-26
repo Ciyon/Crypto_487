@@ -1,4 +1,6 @@
-import java.io.UnsupportedEncodingException;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.Arrays;
 
@@ -7,6 +9,8 @@ import java.util.Arrays;
  *
  * @author Markku-Juhani Saarinen (original Keccak and SHAKE implementation in C)
  * @author Paulo S. L. M. Barreto (Java version, cSHAKE, KMACXOF)
+ * @author Brandon Gaetaniello
+ * @author Arwain Karlin
  */
 public class Main {
     private static int test_hexdigit(char ch) {
@@ -291,6 +295,15 @@ public class Main {
 
     }
 
+    private static String hash(byte[] m) throws UnsupportedEncodingException {
+        byte[] byteArr = SHAKE.KMACXOF256(asciiStringToByteArray(""), m, 512, asciiStringToByteArray("D"));
+        StringBuilder hash = new StringBuilder();
+        for (byte b : byteArr) {
+            hash.append(byteToHex(b));
+        }
+        return hash.toString();
+    }
+
     private static Cryptogram encrypt(byte[] m, byte[] pw) {
         byte[] byteEmptyString = asciiStringToByteArray("");
         byte[] z = randomByte();
@@ -301,15 +314,15 @@ public class Main {
         for (int i = 0; i < c.length; i++) {
             c[i] ^= m[i];
         }
-        byte[] t = SHAKE.KMACXOF256(ka, m, 512, asciiStringToByteArray("SKE"));
+        byte[] t = SHAKE.KMACXOF256(pw, m, 512, asciiStringToByteArray("T"));
         return new Cryptogram(z, c, t);
     }
 
-    public static String decrypt(Cryptogram cryptogram, byte [] pw) throws UnsupportedEncodingException {
+    public static String decrypt(Cryptogram cryptogram, byte[] pw) throws UnsupportedEncodingException {
         byte[] byteEmptyString = asciiStringToByteArray("");
-        byte [] z = cryptogram.getZ();
-        byte [] c = cryptogram.getC();
-        byte [] t = cryptogram.getT();
+        byte[] z = cryptogram.getIV();
+        byte[] c = cryptogram.getCipherText();
+        byte[] t = cryptogram.getMAC();
         byte[] keka = SHAKE.KMACXOF256(SHAKE.concat(z, pw), byteEmptyString, 1024, asciiStringToByteArray("S"));
         byte[] ke = Arrays.copyOfRange(keka, 0, keka.length / 2);
         byte[] ka = Arrays.copyOfRange(keka, (keka.length / 2) + 1, keka.length - 1);
@@ -317,41 +330,100 @@ public class Main {
         for (int i = 0; i < m.length; i++) {
             m[i] ^= c[i];
         }
-        byte[] tPrime = SHAKE.KMACXOF256(ka,m,512, asciiStringToByteArray("SKA"));
-        if(!Arrays.equals(t, tPrime)){
+        byte[] tPrime = SHAKE.KMACXOF256(ka, m, 512, asciiStringToByteArray("SKA"));
+        if (!Arrays.equals(t, tPrime)) {
             return new String(m, "UTF-8");
         }
         return "";
 
     }
 
-    public static void main(String[] args) throws UnsupportedEncodingException {
-        if (test_shake() == 0) {
-            System.out.println("FIPS 202/SHAKE256 Self-Tests OK!");
-        }
-        test_cshake256();
-        test_kmacxof256();
-        byte[] messsageIn = asciiStringToByteArray("I am the message");
-        byte[] pw = asciiStringToByteArray("password");
-        System.out.println(messsageIn.length);
-        Cryptogram gram = encrypt(messsageIn, pw);
-        StringBuilder z = new StringBuilder();
-        StringBuilder c = new StringBuilder();
-        StringBuilder t = new StringBuilder();
-        for (byte b : gram.getZ()) {
-            z.append(byteToHex(b));
-        }
-        for (byte b : gram.getC()) {
-            c.append(byteToHex(b));
-        }
-        for (byte b : gram.getT()) {
-            t.append(byteToHex(b));
+    public static byte[] readFile(File theFile) throws IOException {
+        byte[] byteArr;
+        if (theFile.exists() && theFile.isFile()) {
+            byteArr = Files.readAllBytes(theFile.toPath());
+//           System.out.println(new String(byteArr, "UTF-8"));
+        } else {
+            if (!theFile.isFile()) {
+                throw new IllegalArgumentException("File input must be a file.");
+            } else {
+                throw new IllegalArgumentException("File name not found.");
+            }
         }
 
-        System.out.println("z = " + z.toString());
-        System.out.println("c = " + c.toString());
-        System.out.println("t = " + t.toString());
-        System.out.println(decrypt(gram, pw));
+        return byteArr;
+    }
+
+    public static void main(String[] args) throws IOException {
+        switch (args[0]) {
+            case "-hash":
+                if (args[1].equals("-f") && args[2] != null) {
+                    String h = hash(readFile(new File(args[2])));
+                    System.out.println(h);
+                    break;
+
+                } else if (args[1].equals("-m") && args[2] != null) {
+                    System.out.println(hash(asciiStringToByteArray(args[2])));
+                    break;
+                } else {
+                    throw new IllegalArgumentException("Please provide appropriate input");
+                }
+            case "-enc":
+                if (args[1].equals("-f") && args[2] != null) {
+                    if (args[3].equals("-pw") && args[4] != null) {
+                        Cryptogram gram = encrypt(readFile((new File(args[2]))), asciiStringToByteArray(args[4]));
+
+                        Files.write(Paths.get("IV.txt"), gram.getIV());
+                        Files.write(Paths.get("ciphertext.txt"), gram.getCipherText());
+                        Files.write(Paths.get("MAC.txt"), gram.getMAC());
+
+                        break;
+
+                    } else {
+                        throw new IllegalArgumentException("Please provide appropriate input");
+                    }
+                } else if (args[1].equals("-m") && args[2] != null) {
+                    if (args[3].equals("-pw") && args[4] != null) {
+                        Cryptogram gram = encrypt(asciiStringToByteArray(args[2]), asciiStringToByteArray(args[4]));
+
+                        Files.write(Paths.get("IV.txt"), gram.getIV());
+                        Files.write(Paths.get("ciphertext.txt"), gram.getCipherText());
+                        Files.write(Paths.get("MAC.txt"), gram.getMAC());
+
+                        break;
+                    }
+                }
+            case "-dec":
+                if (args[1].equals("-pw")) {
+
+                    byte[] IV;
+                    byte[] cText;
+                    byte[] MAC;
+
+                    IV = Files.readAllBytes(Paths.get("IV.txt"));
+                    cText = Files.readAllBytes(Paths.get("ciphertext.txt"));
+                    MAC = Files.readAllBytes(Paths.get("MAC.txt"));
+                    Cryptogram gram = new Cryptogram(IV, cText, MAC);
+                    System.out.println("Decrypted Message is: " + decrypt(gram, asciiStringToByteArray(args[2])));
+                    break;
+
+
+                } else if (args[1].equals("-m")) {
+                    break;
+                } else {
+                    throw new IllegalArgumentException("Please provide appropriate input");
+                }
+            default:
+                throw new IllegalArgumentException("Please provide appropriate input");
+        }
+//
+//        if (test_shake() == 0) {
+//            System.out.println("FIPS 202/SHAKE256 Self-Tests OK!");
+//        }
+//
+//        test_cshake256();
+//        test_kmacxof256();
+//
     }
 
 }
