@@ -1,4 +1,5 @@
 import java.io.*;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
@@ -338,6 +339,19 @@ public class Main {
 
     }
 
+    public static byte[] generateKeyPair(byte [] pwd){
+        Point pointA = new Point(BigInteger.valueOf(-1),BigInteger.ZERO);
+        Point pointB = new Point(BigInteger.ZERO,BigInteger.ONE);
+        Point result;
+        result = Point.sum(pointA, pointB);
+
+//        byte [] V;
+//        byte [] s;
+//        s = SHAKE.KMACXOF256(pwd, asciiStringToByteArray(""), 512, asciiStringToByteArray("K"));
+//        V = s *
+        return null;
+    }
+
     public static byte[] readFile(File theFile) throws IOException {
         byte[] byteArr;
         if (theFile.exists() && theFile.isFile()) {
@@ -368,6 +382,15 @@ public class Main {
                 } else {
                     throw new IllegalArgumentException("Please provide appropriate input");
                 }
+            case "-gen":
+                if (args[1].equals("-pw") && args[2] != null){
+                    generateKeyPair(asciiStringToByteArray(args[1]));
+                    break;
+                } else {
+                    throw new IllegalArgumentException("Please provide appropriate input");
+                }
+
+
             case "-enc":
                 if (args[1].equals("-f") && args[2] != null) {
                     if (args[3].equals("-pw") && args[4] != null) {
