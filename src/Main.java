@@ -345,10 +345,13 @@ public class Main {
         Point result = pointA.sum(pointB);
         System.out.println("X: " + result.getX() + " " + "Y: " + result.getY());
 
-//        byte [] V;
-//        byte [] s;
-//        s = SHAKE.KMACXOF256(pwd, asciiStringToByteArray(""), 512, asciiStringToByteArray("K"));
-//        V = s *
+        byte [] V;
+        byte [] s;
+        s = SHAKE.KMACXOF256(pwd, asciiStringToByteArray(""), 512, asciiStringToByteArray("K"));
+        BigInteger S = new BigInteger(1, s);
+        S = S.multiply(BigInteger.valueOf(4));
+        System.out.println(S);
+//        V = s * //TODO: Need G here?
         return null;
     }
 
