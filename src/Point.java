@@ -2,9 +2,9 @@ import java.math.BigInteger;
 
 public class Point {
 
-    private static BigInteger myP = BigInteger.valueOf(2).pow(521).subtract(BigInteger.ONE);
-    private static BigInteger E_521;
-    private static BigInteger d = BigInteger.valueOf(-376014);
+    public static BigInteger myP = BigInteger.valueOf(2).pow(521).subtract(BigInteger.ONE);
+    public static BigInteger E_521;
+    public static BigInteger d = BigInteger.valueOf(-376014);
     public BigInteger myX;
     public BigInteger myY;
 
@@ -52,5 +52,5 @@ public class Point {
     public Point opposite(){
         return new Point(this.myX.negate(), this.myY);
     }
-    
+
 }
