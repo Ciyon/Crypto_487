@@ -371,13 +371,14 @@ public class Main {
 
         byte[] V;
         BigInteger radicand = BigInteger.ONE.subtract(BigInteger.valueOf(18).pow(2))
-                .multiply(BigInteger.ONE.add(BigInteger.valueOf(376014)
-                        .multiply(BigInteger.valueOf(18).pow(2)))).modInverse(Point.myP);
+                              .multiply(BigInteger.ONE.add(BigInteger.valueOf(376014)
+                              .multiply(BigInteger.valueOf(18).pow(2)))).modInverse(Point.myP);
 
         BigInteger y = sqrt(radicand, Point.myP, false);
+        System.out.println("Y: " + y);
         BigInteger s = new BigInteger(SHAKE.KMACXOF256(pwd, "".getBytes(),
                 512, "K".getBytes())).multiply(BigInteger.valueOf(4));
-        System.out.println(Arrays.toString(s.toByteArray()));
+        System.out.println(s);
 //        V = s * //TODO: Need G here?
         return null;
     }
