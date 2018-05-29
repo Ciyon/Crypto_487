@@ -341,53 +341,37 @@ public class Main {
 
     }
 
-    /**
-     * Compute a square root of v mod p with a specified
-     * least significant bit, if such a root exists.
-     *
-     * @param v the radicand.
-     * @param p the modulus (must satisfy p mod 4 = 3).
-     * @param lsb desired least significant bit (true: 1, false: 0).
-     * @return a square root r of v mod p with r mod 2 = 1 iff lsb = true
-     * if such a root exists, otherwise null.
-     */
-    public static BigInteger sqrt(BigInteger v, BigInteger p, boolean lsb) {
-        assert (p.testBit(0) && p.testBit(1)); // p = 3 (mod 4)
-        if (v.signum() == 0) {
-            return BigInteger.ZERO;
+
+
+    private static Point exponentiation(BigInteger x, Point G)
+    {
+        Point Y = G;
+        for (int i = x.bitCount() - 1; i >= 0; i--)
+        {
+            Y.doubling();
+            if (x.testBit(i))
+            {
+                Y.sum(G);
+            }
         }
-        BigInteger r = v.modPow(p.shiftRight(2).add(BigInteger.ONE), p);
-        if (r.testBit(0) != lsb) {
-            r = p.subtract(r); // correct the lsb
-        }
-        return (r.multiply(r).subtract(v).mod(p).signum() == 0) ? r : null;
+
+        return Y;
     }
 
-    public static byte[] generateKeyPair(byte[] pwd) {
-        Point pointA = new Point(BigInteger.valueOf(1), BigInteger.valueOf(0));
-        Point pointB = new Point(BigInteger.valueOf(-1), BigInteger.valueOf(0));
-        Point result = pointA.sum(pointB);
-        System.out.println("X: " + result.getX() + " " + "Y: " + result.getY());
-
-        byte[] V;
-        BigInteger radicand = BigInteger.ONE.subtract(BigInteger.valueOf(18).pow(2))
-                              .multiply(BigInteger.ONE.add(BigInteger.valueOf(376014)
-                              .multiply(BigInteger.valueOf(18).pow(2)))).modInverse(Point.myP);
-
-        BigInteger y = sqrt(radicand, Point.myP, false);
-        System.out.println("Y: " + y);
+    private static void generateKeyPair(byte[] pwd) {
+        Point G = new Point(BigInteger.valueOf(18), false);
         BigInteger s = new BigInteger(SHAKE.KMACXOF256(pwd, "".getBytes(),
-                512, "K".getBytes())).multiply(BigInteger.valueOf(4));
+                512, "K".getBytes())).multiply(BigInteger.valueOf(4)).abs();
         System.out.println(s);
-//        V = s * //TODO: Need G here?
-        return null;
+
+        Point V = exponentiation(s, G);
+        System.out.println("X: " + V.getX() + " Y: " + V.getY());
     }
 
-    public static byte[] readFile(File theFile) throws IOException {
+    private static byte[] readFile(File theFile) throws IOException {
         byte[] byteArr;
         if (theFile.exists() && theFile.isFile()) {
             byteArr = Files.readAllBytes(theFile.toPath());
-//           System.out.println(new String(byteArr, "UTF-8"));
         } else {
             if (!theFile.isFile()) {
                 throw new IllegalArgumentException("File input must be a file.");
