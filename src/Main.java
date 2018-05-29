@@ -7,6 +7,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.BitSet;
 
 /**
  * Test driver for cSHAKE256 and KMACXOF256.
@@ -308,13 +309,49 @@ public class Main {
         return hash.toString();
     }
 
-    private static Cryptogram encrypt(byte[] m, byte[] pw) {
-        byte[] byteEmptyString = asciiStringToByteArray("");
-        byte[] z = randomByte();
-        byte[] keka = SHAKE.KMACXOF256(SHAKE.concat(z, pw), byteEmptyString, 1024, asciiStringToByteArray("S"));
+    private static String decrypt(Cryptogram cryptogram, byte[] pw) throws UnsupportedEncodingException {
+        Point z = cryptogram.getPoint();
+        byte[] c = cryptogram.getCipherText();
+        byte[] t = cryptogram.getMAC();
+        BigInteger s = new BigInteger(SHAKE.KMACXOF256(pw, "".getBytes(),
+                512, "K".getBytes())).multiply(BigInteger.valueOf(4));
+        Point W = exponentiation(s, z);
+        byte[] keka = SHAKE.KMACXOF256(W.getX().toByteArray(), "".getBytes(), 1024, asciiStringToByteArray("P"));
         byte[] ke = Arrays.copyOfRange(keka, 0, keka.length / 2);
         byte[] ka = Arrays.copyOfRange(keka, (keka.length / 2) + 1, keka.length - 1);
-        byte[] c = SHAKE.KMACXOF256(ke, byteEmptyString, m.length * 8, asciiStringToByteArray("SKE"));
+        byte[] m = SHAKE.KMACXOF256(ke, "".getBytes(), c.length * 8, asciiStringToByteArray("PKE"));
+        for (int i = 0; i < m.length; i++) {
+            m[i] ^= c[i];
+        }
+        byte[] tPrime = SHAKE.KMACXOF256(ka, m, 512, asciiStringToByteArray("PKA"));
+        if (!Arrays.equals(t, tPrime)) {
+            return new String(m, "UTF-8");
+        }
+        return "";
+    }
+
+    private static Cryptogram encrypt(byte[] m, Point V) {
+        BigInteger k = new BigInteger(randomByte()).multiply(BigInteger.valueOf(4));
+        Point G = new Point(BigInteger.valueOf(18), false);
+        Point W = exponentiation(k, V);
+        Point Z = exponentiation(k, G);
+        byte[] keka = SHAKE.KMACXOF256(W.getX().toByteArray(), "".getBytes(), 1024, asciiStringToByteArray("P"));
+        byte[] ke = Arrays.copyOfRange(keka, 0, keka.length / 2);
+        byte[] ka = Arrays.copyOfRange(keka, (keka.length / 2) + 1, keka.length - 1);
+        byte[] c = SHAKE.KMACXOF256(ke, "".getBytes(), m.length * 8, asciiStringToByteArray("PKE"));
+        for (int i = 0; i < c.length; i++) {
+            c[i] ^= m[i];
+        }
+        byte[] t = SHAKE.KMACXOF256(ka, m, 512, asciiStringToByteArray("PKA"));
+        return new Cryptogram(Z, c, t);
+    }
+
+    private static Cryptogram encrypt(byte[] m, byte[] pw) {
+        byte[] z = randomByte();
+        byte[] keka = SHAKE.KMACXOF256(SHAKE.concat(z, pw), "".getBytes(), 1024, asciiStringToByteArray("S"));
+        byte[] ke = Arrays.copyOfRange(keka, 0, keka.length / 2);
+        byte[] ka = Arrays.copyOfRange(keka, (keka.length / 2) + 1, keka.length - 1);
+        byte[] c = SHAKE.KMACXOF256(ke, "".getBytes(), m.length * 8, asciiStringToByteArray("SKE"));
         for (int i = 0; i < c.length; i++) {
             c[i] ^= m[i];
         }
@@ -322,15 +359,14 @@ public class Main {
         return new Cryptogram(z, c, t);
     }
 
-    public static String decrypt(Cryptogram cryptogram, byte[] pw) throws UnsupportedEncodingException {
-        byte[] byteEmptyString = asciiStringToByteArray("");
+    public static String decryptSymmetric(Cryptogram cryptogram, byte[] pw) throws UnsupportedEncodingException {
         byte[] z = cryptogram.getIV();
         byte[] c = cryptogram.getCipherText();
         byte[] t = cryptogram.getMAC();
-        byte[] keka = SHAKE.KMACXOF256(SHAKE.concat(z, pw), byteEmptyString, 1024, asciiStringToByteArray("S"));
+        byte[] keka = SHAKE.KMACXOF256(SHAKE.concat(z, pw), "".getBytes(), 1024, asciiStringToByteArray("S"));
         byte[] ke = Arrays.copyOfRange(keka, 0, keka.length / 2);
         byte[] ka = Arrays.copyOfRange(keka, (keka.length / 2) + 1, keka.length - 1);
-        byte[] m = SHAKE.KMACXOF256(ke, byteEmptyString, c.length * 8, asciiStringToByteArray("SKE"));
+        byte[] m = SHAKE.KMACXOF256(ke, "".getBytes(), c.length * 8, asciiStringToByteArray("SKE"));
         for (int i = 0; i < m.length; i++) {
             m[i] ^= c[i];
         }
@@ -342,14 +378,11 @@ public class Main {
 
     }
 
-    private static Point exponentiation(BigInteger x, Point G)
-    {
+    private static Point exponentiation(BigInteger x, Point G) {
         Point Y = G;
-        for (int i = x.bitCount() - 1; i >= 0; i--)
-        {
+        for (int i = x.bitCount() - 1; i >= 0; i--) {
             Y.doubling();
-            if (x.testBit(i))
-            {
+            if (x.testBit(i)) {
                 Y.sum(G);
             }
         }
@@ -363,10 +396,8 @@ public class Main {
                 512, "K".getBytes())).multiply(BigInteger.valueOf(4)).abs();
 
         Point V = exponentiation(s, G);
-        Files.write(Paths.get("Public.txt"), "X: ".getBytes());
-        Files.write(Paths.get("Public.txt"), V.getX().toByteArray(), StandardOpenOption.APPEND);
-        Files.write(Paths.get("Public.txt"), "\nY: ".getBytes(), StandardOpenOption.APPEND);
-        Files.write(Paths.get("Public.txt"), V.getY().toByteArray(), StandardOpenOption.APPEND);
+        Files.write(Paths.get("PublicX.txt"), V.getX().toByteArray());
+        Files.write(Paths.get("PublicY.txt"), V.getY().toByteArray());
 
         Cryptogram crypt = encrypt(s.toByteArray(), pw);
 
@@ -374,6 +405,19 @@ public class Main {
         Files.write(Paths.get("ciphertext.txt"), crypt.getCipherText());
         Files.write(Paths.get("MAC.txt"), crypt.getMAC());
 
+    }
+
+    private static void generateSignature(byte[] m, byte[] pw) throws IOException {
+        BigInteger s = new BigInteger(SHAKE.KMACXOF256(pw, "".getBytes(), 512, "K".getBytes())).multiply(BigInteger.valueOf(4));
+        BigInteger k = new BigInteger(SHAKE.KMACXOF256(s.toByteArray(), m, 512, "N".getBytes()));
+        Point G = new Point(BigInteger.valueOf(18), false);
+        Point U = exponentiation(k, G);
+        BigInteger h = new BigInteger(SHAKE.KMACXOF256(U.getX().toByteArray(), m, 512, "T".getBytes()));
+        BigInteger r = BigInteger.valueOf(2).pow(519).subtract(new BigInteger("337554763258501705789107630418782636071904961214051226618635150085779108655765"));
+        BigInteger z = k.subtract(h.multiply(s)).mod(r);
+        Files.write(Paths.get("signature.txt"), h.toByteArray());
+        Files.write(Paths.get("signature.txt"), z.toByteArray(), StandardOpenOption.APPEND);
+        System.out.println("Signature written to signature.txt.");
     }
 
     private static byte[] readFile(File theFile) throws IOException {
@@ -408,8 +452,18 @@ public class Main {
             case "-gen":
                 if (args[1].equals("-pw") && args[2] != null) {
                     generateKeyPair(asciiStringToByteArray(args[2]));
-                    System.out.println("Outputted public key to Public.txt");
+                    System.out.println("Outputted public key to PublicX and PublicY.txt");
                     System.out.println("Outputted private key to IV.txt, MAC.txt, ciphertext.txt");
+                    break;
+                } else {
+                    throw new IllegalArgumentException("Please provide appropriate input");
+                }
+            case "-gensig":
+                if (args[1].equals("-m") && args[2] != null) {
+                    if (args[3].equals("-pw") && args[4] != null)
+                    {
+                        generateSignature(args[2].getBytes(), args[4].getBytes());
+                    }
                     break;
                 } else {
                     throw new IllegalArgumentException("Please provide appropriate input");
@@ -424,22 +478,33 @@ public class Main {
                         Files.write(Paths.get("IV.txt"), gram.getIV());
                         Files.write(Paths.get("ciphertext.txt"), gram.getCipherText());
                         Files.write(Paths.get("MAC.txt"), gram.getMAC());
-
                         break;
 
-                    } else {
-                        throw new IllegalArgumentException("Please provide appropriate input");
                     }
                 } else if (args[1].equals("-m") && args[2] != null) {
+                    if (args[3].equals("-k")) {
+                        BigInteger x = new BigInteger(Files.readAllBytes(Paths.get("PublicX.txt")));
+                        BigInteger y = new BigInteger(Files.readAllBytes(Paths.get("PublicY.txt")));
+                        Point publicKey = new Point(x, y);
+                        Cryptogram gram = encrypt(args[2].getBytes(), publicKey);
+
+                        Files.write(Paths.get("PublicY.txt"), gram.getPoint().getY().toByteArray());
+                        Files.write(Paths.get("PublicX.txt"), gram.getPoint().getX().toByteArray());
+                        Files.write(Paths.get("ciphertext.txt"), gram.getCipherText());
+                        Files.write(Paths.get("MAC.txt"), gram.getMAC());
+                        break;
+                    }
                     if (args[3].equals("-pw") && args[4] != null) {
                         Cryptogram gram = encrypt(asciiStringToByteArray(args[2]), asciiStringToByteArray(args[4]));
 
                         Files.write(Paths.get("IV.txt"), gram.getIV());
                         Files.write(Paths.get("ciphertext.txt"), gram.getCipherText());
                         Files.write(Paths.get("MAC.txt"), gram.getMAC());
-
                         break;
                     }
+                }
+                else {
+                    throw new IllegalArgumentException("Please provide appropriate input");
                 }
             case "-dec":
                 if (args[1].equals("-pw")) {
@@ -452,11 +517,24 @@ public class Main {
                     cText = Files.readAllBytes(Paths.get("ciphertext.txt"));
                     MAC = Files.readAllBytes(Paths.get("MAC.txt"));
                     Cryptogram gram = new Cryptogram(IV, cText, MAC);
-                    System.out.println("Decrypted Message is: " + decrypt(gram, asciiStringToByteArray(args[2])));
+                    System.out.println("Decrypted Message is: " + decryptSymmetric(gram, asciiStringToByteArray(args[2])));
                     break;
+                } else {
+                    throw new IllegalArgumentException("Please provide appropriate input");
+                }
+            case "-kdec":
+                if (args[1].equals("-pw")) {
 
+                    byte[] cText;
+                    byte[] MAC;
 
-                } else if (args[1].equals("-m")) {
+                    BigInteger x = new BigInteger(Files.readAllBytes(Paths.get("PublicX.txt")));
+                    BigInteger y = new BigInteger(Files.readAllBytes(Paths.get("PublicY.txt")));
+                    Point Z = new Point (x, y);
+                    cText = Files.readAllBytes(Paths.get("ciphertext.txt"));
+                    MAC = Files.readAllBytes(Paths.get("MAC.txt"));
+                    Cryptogram gram = new Cryptogram(Z, cText, MAC);
+                    System.out.println("Decrypted Message is: " + decrypt(gram, asciiStringToByteArray(args[2])));
                     break;
                 } else {
                     throw new IllegalArgumentException("Please provide appropriate input");
