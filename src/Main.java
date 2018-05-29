@@ -4,6 +4,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.security.SecureRandom;
 import java.util.Arrays;
 
@@ -341,8 +342,6 @@ public class Main {
 
     }
 
-
-
     private static Point exponentiation(BigInteger x, Point G)
     {
         Point Y = G;
@@ -358,14 +357,23 @@ public class Main {
         return Y;
     }
 
-    private static void generateKeyPair(byte[] pwd) {
+    private static void generateKeyPair(byte[] pw) throws IOException {
         Point G = new Point(BigInteger.valueOf(18), false);
-        BigInteger s = new BigInteger(SHAKE.KMACXOF256(pwd, "".getBytes(),
+        BigInteger s = new BigInteger(SHAKE.KMACXOF256(pw, "".getBytes(),
                 512, "K".getBytes())).multiply(BigInteger.valueOf(4)).abs();
-        System.out.println(s);
 
         Point V = exponentiation(s, G);
-        System.out.println("X: " + V.getX() + " Y: " + V.getY());
+        Files.write(Paths.get("Public.txt"), "X: ".getBytes());
+        Files.write(Paths.get("Public.txt"), V.getX().toByteArray(), StandardOpenOption.APPEND);
+        Files.write(Paths.get("Public.txt"), "\nY: ".getBytes(), StandardOpenOption.APPEND);
+        Files.write(Paths.get("Public.txt"), V.getY().toByteArray(), StandardOpenOption.APPEND);
+
+        Cryptogram crypt = encrypt(s.toByteArray(), pw);
+
+        Files.write(Paths.get("IV.txt"), crypt.getIV());
+        Files.write(Paths.get("ciphertext.txt"), crypt.getCipherText());
+        Files.write(Paths.get("MAC.txt"), crypt.getMAC());
+
     }
 
     private static byte[] readFile(File theFile) throws IOException {
@@ -400,6 +408,8 @@ public class Main {
             case "-gen":
                 if (args[1].equals("-pw") && args[2] != null) {
                     generateKeyPair(asciiStringToByteArray(args[2]));
+                    System.out.println("Outputted public key to Public.txt");
+                    System.out.println("Outputted private key to IV.txt, MAC.txt, ciphertext.txt");
                     break;
                 } else {
                     throw new IllegalArgumentException("Please provide appropriate input");

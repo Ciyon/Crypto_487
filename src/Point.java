@@ -22,7 +22,7 @@ public class Point {
 
     public Point(BigInteger x, boolean sigBit) {
         BigInteger xpow2 = BigInteger.valueOf(18).pow(2);
-        BigInteger radicand = BigInteger.ONE.subtract(xpow2).multiply(BigInteger.ONE.add(BigInteger.valueOf(376014).multiply(xpow2))).modInverse(myP);
+        BigInteger radicand = BigInteger.ONE.subtract(xpow2).multiply((BigInteger.ONE.add(BigInteger.valueOf(376014).multiply(xpow2)).mod(myP)).modInverse(myP));
         BigInteger y = Point.sqrt(radicand, myP, sigBit);
         myX = x;
         myY = y;
