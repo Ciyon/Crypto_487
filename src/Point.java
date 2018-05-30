@@ -39,11 +39,11 @@ public class Point {
 
     void sum(Point a) {
         BigInteger xNum = this.getX().multiply(a.getY()).add(this.getY().multiply(a.getX())).mod(myP);
-        BigInteger xDen = BigInteger.ONE.add(d.multiply(this.getX()).multiply(a.getX()).multiply(this.getY()).multiply(this.getX())).modInverse(myP);
+        BigInteger xDen = BigInteger.ONE.add(d.multiply(this.getX()).multiply(a.getX()).multiply(this.getY()).multiply(a.getY())).modInverse(myP);
         BigInteger yNum = this.getY().multiply(a.getY()).subtract(this.getX().multiply(a.getX())).mod(myP);
         BigInteger yDen = BigInteger.ONE.subtract(d.multiply(this.getX()).multiply(a.getX()).multiply(this.getY()).multiply(a.getY())).modInverse(myP);
-        myX = xNum.multiply(xDen);
-        myY = yNum.multiply(yDen);
+        myX = xDen.multiply(xNum).mod(myP);
+        myY = yDen.multiply(yNum).mod(myP);
     }
 
     void doubling()
@@ -51,9 +51,9 @@ public class Point {
         BigInteger xNum = BigInteger.TWO.multiply(this.getX()).multiply(this.getY()).mod(myP);
         BigInteger xDen = this.getX().pow(2).add(this.getY().pow(2)).modInverse(myP);
         BigInteger yNum = this.getY().pow(2).subtract(this.getX().pow(2)).mod(myP);
-        BigInteger yDen = BigInteger.TWO.subtract(this.getX().pow(2).subtract(this.getY().pow(2))).modInverse(myP);
-        myX = xNum.multiply(xDen);
-        myY = yNum.multiply(yDen);
+        BigInteger yDen = BigInteger.TWO.subtract(this.getX().pow(2)).subtract(this.getY().pow(2)).modInverse(myP);
+        myX = xDen.multiply(xNum).mod(myP);
+        myY = yDen.multiply(yNum).mod(myP);
     }
 
 

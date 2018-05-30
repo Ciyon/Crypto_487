@@ -294,7 +294,7 @@ public class Main {
     private static byte[] randomByte() {
 
         SecureRandom random = new SecureRandom();
-        byte[] b = new byte[8];
+        byte[] b = new byte[16];
         random.nextBytes(b);
         return b;
 
@@ -380,7 +380,7 @@ public class Main {
 
     private static Point exponentiation(BigInteger x, Point G) {
         Point Y = G;
-        for (int i = x.bitCount() - 1; i >= 0; i--) {
+        for (int i = x.bitLength() - 1; i >= 0; i--) {
             Y.doubling();
             if (x.testBit(i)) {
                 Y.sum(G);
